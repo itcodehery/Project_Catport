@@ -1,26 +1,38 @@
+mod commands;
 mod parser;
-mod file_system;
 
-use std::path::PathBuf;
+use crate::parser::Commands;
 use clap::Parser;
 use parser::Cli;
-use crate::parser::Commands;
+use std::path::PathBuf;
+use commands::view;
+use crate::commands::share::start_sharing;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     if cli.verbose {
         println!("Verbose mode enabled.");
     }
 
-    println!("{:?}", cli);
-
-    match file_system::execute_view(PathBuf::from(match cli.command {
-        Commands::View { file_name, .. } => { file_name },
-        Commands::Share { .. } => { "".to_string() },
-        Commands::Connect { .. } => { "".to_string()},
-    })) {
-        Ok(result) => {},
-        Err(error) => {println!("{}", error); std::process::exit(1);}
+    match cli.command {
+        Commands::Connect { url } => {}
+        Commands::Share {
+            file_name,
+            local_only,
+        } => {
+            start_sharing(PathBuf::from(file_name)).await;
+        }
+        Commands::View { file_name, plain } => {
+            match view::execute_view(PathBuf::from(file_name), plain) {
+                Ok(res) => {
+                    println!("The view command has successfully been implemented!")
+                }
+                Err(err) => {
+                    println!("ERROR: {}", err)
+                }
+            };
+        }
     }
 }
