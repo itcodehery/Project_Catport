@@ -1,12 +1,12 @@
 mod commands;
 mod parser;
 
+use crate::commands::share::start_sharing;
 use crate::parser::Commands;
 use clap::Parser;
+use commands::view;
 use parser::Cli;
 use std::path::PathBuf;
-use commands::view;
-use crate::commands::share::start_sharing;
 
 #[tokio::main]
 async fn main() {
@@ -26,9 +26,7 @@ async fn main() {
         }
         Commands::View { file_name, plain } => {
             match view::execute_view(PathBuf::from(file_name), plain) {
-                Ok(res) => {
-                    println!("The view command has successfully been implemented!")
-                }
+                Ok(_) => {}
                 Err(err) => {
                     println!("ERROR: {}", err)
                 }
