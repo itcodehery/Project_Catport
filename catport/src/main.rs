@@ -17,12 +17,12 @@ async fn main() {
     }
 
     match cli.command {
-        Commands::Connect { url } => {}
+        Commands::Connect { url: _ } => {}
         Commands::Share {
             file_name,
-            local_only,
+            local_only: _,
         } => {
-            start_sharing(PathBuf::from(file_name)).await;
+            let _ = start_sharing(PathBuf::from(file_name)).await;
         }
         Commands::View { file_name, plain } => {
             match view::execute_view(PathBuf::from(file_name), plain) {

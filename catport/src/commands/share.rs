@@ -1,5 +1,3 @@
-use crate::commands::highlighter::apply_syntax_highlight;
-
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::response::Response;
 use axum::{
@@ -14,8 +12,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
-
-// STEP 1 -> User should run the share command:
 
 pub async fn start_sharing(file_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     // Generate a unique id
@@ -59,7 +55,7 @@ pub async fn start_sharing(file_path: PathBuf) -> Result<(), Box<dyn std::error:
     println!("🎯 Server listening on:");
     println!("  📱 Network: http://{}:3000/share/{}", local_ip, share_id);
     println!("  💻 Local:   http://localhost:3000/share/{}", share_id);
-    println!("  📡 Use the Network URL on your phone!");
+    println!("  📡 Use the Network URL on your browser!");
 
     axum::serve(listener, app).await?;
 
@@ -68,7 +64,7 @@ pub async fn start_sharing(file_path: PathBuf) -> Result<(), Box<dyn std::error:
 
 // Helper function to get the local IP address
 fn get_local_ip() -> Option<String> {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::IpAddr;
 
     // Try to get local IP by connecting to a remote address
     let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
@@ -98,16 +94,16 @@ async fn serve_file_page(
         <title>📁 Catport Live Share</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-            body {{ 
-                font-family: 'Courier New', monospace; 
-                margin: 20px; 
+            body {{
+                font-family: 'Courier New', monospace;
+                margin: 20px;
                 background: #1e1e1e;
                 color: #d4d4d4;
             }}
             h1 {{ color: #569cd6; }}
-            #content {{ 
-                background: #2d2d30; 
-                padding: 20px; 
+            #content {{
+                background: #2d2d30;
+                padding: 20px;
                 border-radius: 8px;
                 white-space: pre-wrap;
                 border: 1px solid #3e3e42;
@@ -128,24 +124,24 @@ async fn serve_file_page(
         <h1>🐾 Catport Live Share</h1>
         <div id="status" class="status disconnected">🔌 Connecting...</div>
         <pre id="content">Loading...</pre>
-        
+
         <script>
             // ✅ Use dynamic WebSocket URL based on current host
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${{protocol}}//${{window.location.host}}/ws/{}`;
-            
+
             console.log('Connecting to:', wsUrl);
             const ws = new WebSocket(wsUrl);
-            
+
             const statusEl = document.getElementById('status');
             const contentEl = document.getElementById('content');
-            
+
             ws.onopen = function() {{
                 console.log('✅ Connected to live share');
                 statusEl.textContent = '🟢 Connected - Live updates enabled';
                 statusEl.className = 'status connected';
             }};
-            
+
             ws.onmessage = function(event) {{
                 try {{
                     const data = JSON.parse(event.data);
@@ -163,13 +159,13 @@ async fn serve_file_page(
                     console.error('Error parsing message:', e);
                 }}
             }};
-            
+
             ws.onerror = function(error) {{
                 console.error('❌ WebSocket error:', error);
                 statusEl.textContent = '🔴 Connection error';
                 statusEl.className = 'status disconnected';
             }};
-            
+
             ws.onclose = function() {{
                 console.log('🔌 Connection closed');
                 statusEl.textContent = '🔴 Disconnected';
@@ -312,7 +308,7 @@ async fn watch_file_changes(file_path: PathBuf, state: Arc<AppState>) {
                     *state.content.lock().await = new_content.clone();
 
                     // Broadcast to all connected clients
-                    if let Err(_) = state.broadcast_tx.send(new_content) {
+                    if state.broadcast_tx.send(new_content).is_err() {
                         // No receivers, that's OK
                     }
 
@@ -335,44 +331,4 @@ struct AppState {
     content: Mutex<String>,
     broadcast_tx: broadcast::Sender<String>,
     connected_clients: Mutex<usize>,
-}
-
-pub async fn connect_to_share(url: &str) -> Result<(), ()> {
-    // Parse URL to get WebSocket endpoint
-    let ws_url = url.replace("/share/", "/ws/").replace("http://", "ws://");
-
-    // Connect to WebSocket
-    let (ws_stream, _) = tokio_tungstenite::connect_async(&ws_url).await.unwrap();
-    let (write, mut read) = ws_stream.split();
-
-    println!("🔗 Connected to shared file: {}", url);
-    println!("📡 Receiving live updates...\n");
-
-    // Listen for updates
-    while let Some(msg) = read.next().await {
-        match msg {
-            Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {
-                let data: serde_json::Value = serde_json::from_str(&text).unwrap();
-
-                if data["type"] == "file_content" || data["type"] == "file_update" {
-                    let content = data["content"].as_str().unwrap_or("");
-
-                    // Clear screen and show updated content
-                    print!("\x1b[2J\x1b[H"); // Clear screen, move cursor to top
-
-                    // Apply syntax highlighting to the content
-                    apply_syntax_highlight(&content, ".rs");
-
-                    println!("\n--- Live updates enabled (Ctrl+C to exit) ---");
-                }
-            }
-            Ok(tokio_tungstenite::tungstenite::Message::Close(..)) => {
-                println!("Connection closed");
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
 }
