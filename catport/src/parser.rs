@@ -27,7 +27,9 @@ pub enum Commands {
         local_only: Option<bool>,
     },
     Connect {
-        url : String
+        url : String,
+        #[arg(long)]
+        verbose: bool
     },
 }
 
